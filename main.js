@@ -69,16 +69,16 @@ goButton.addEventListener("click", function()
 function callCompeteAPI()
 {
     //pull host name from input, ie http://facebook.com becomes facebook.com
-    var domainName = domainInput.value.match(/([a-z0-9-.]*)\.([a-z]{2,4})/)[0];
-
-    console.log(domainName);
-
+    var domainName = domainInput.value.match(/([a-z0-9-.]*)\.([a-z]{2,4})/);
+    
     if(!domainName)
     {
         chartContainer.innerHTML = '<h2 style="color: red">please enter a valid domain<br>for example: facebook.com</h2>';
     }
     else
     {
+        domainName = domainName[0];
+
         if(!wasGoAlreadyClicked)
         {
             //no options specified
