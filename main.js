@@ -33,6 +33,8 @@
 
 // Feel free to ask lots of questions and think aloud.
 
+var timeOutInMilliseconds = 5000;
+
 var goButton = document.getElementById('go');
 
 var chartContainer = document.getElementById('container');
@@ -47,78 +49,100 @@ var latestInput = document.getElementsByName('latest')[0];
 
 //this variable prevents a user spamming the go button
 var wasGoAlreadyClicked = false;
+var didCompeteJSONLoad = false;
 
-document.getElementById('clearStartEnd').addEventListener("click", function()
-{
+var domainName;
+
+var script = null;
+
+document.getElementById('clearStartEnd').addEventListener("click", function() {
     startDateInput.value = null;
     endDateInput.vaule = '';
     endDateInput.value = null;
 });
 
-document.getElementById('clearLatest').addEventListener("click", function()
-{
+document.getElementById('clearLatest').addEventListener("click", function() {
     latestInput.value = null;
 });
 
-goButton.addEventListener("click", function()
-{
+goButton.addEventListener("click", function() {
     callCompeteAPI();
 });
 
+function competeCallback(competeJSON) {
+    didCompeteJSONLoad = true;
+    script = null;
+    document.getElementsByTagName('head')[0].removeChild(script);
 
-function callCompeteAPI()
-{
+    wasGoAlreadyClicked = false;
+
+    if (competeJSON.status == 'NO_DATA') {
+        chartContainer.innerHTML = '<h2 style="color: red">No data for this site.</h2>';
+    }
+    else if (competeJSON.status == 'ACCESS_DENIED') {
+        chartContainer.innerHTML = '<h2 style="color: red">' + competeJSON.status_message + '</h2>';
+    }
+    else {
+        makeChart(competeJSON, metricDropDown.options[metricDropDown.selectedIndex].text, metricDropDown.value, domainName)
+    }
+}
+
+function callCompeteAPI() {
     //pull host name from input, ie http://facebook.com becomes facebook.com
-    var domainName = domainInput.value.match(/([a-z0-9-.]*)\.([a-z]{2,4})/);
-    
-    if(!domainName)
-    {
+    domainName = domainInput.value.match(/([a-z0-9-.]*)\.([a-z]{2,4})/);
+
+    if (!domainName) {
         chartContainer.innerHTML = '<h2 style="color: red">please enter a valid domain<br>for example: facebook.com</h2>';
     }
-    else
-    {
+    else {
         domainName = domainName[0];
 
-        if(!wasGoAlreadyClicked)
-        {
+        if (!wasGoAlreadyClicked) {
             //no options specified
-            var url = 'http://turingweb.com:10000/compete_request?metric='+metricDropDown.value+'&domain='+ domainName;
-
+            var url = 'https://apps.compete.com/sites/' + domainName + '/trended/' + metricDropDown.value + '?apikey=e9c9f3a3bec91fd033f7a3d3d39c3b1d&jsonp=competeCallback';
 
             //specified date
-            if(startDateInput.value && endDateInput.value && !latestInput.value)
-            {
+            if (startDateInput.value && !latestInput.value) {
+                var currentDate = new Date();
+                var endYear, endMonth;
+
                 var startYear = parseInt(convertDateToYear(startDateInput.value));
                 var startMonth = parseInt(convertDateToMonth(startDateInput.value));
-                var endYear = parseInt(convertDateToYear(endDateInput.value));
-                var endMonth = parseInt(convertDateToMonth(endDateInput.value));
-                var currentDate = new Date();
+                if (endDateInput.value) {
+                    endYear = parseInt(convertDateToYear(endDateInput.value));
+                    endMonth = parseInt(convertDateToMonth(endDateInput.value));
+                }
+                else {
+                    endYear = currentDate.getFullYear();
+                    //add one to get month because it starts at 0 rather than 1
+                    endMonth = currentDate.getMonth() + 1;
+                }
 
                 //check that the start date is in the past and end date is larger than start date
-                if(endYear - startYear < 1 || currentDate.getFullYear() == startYear)
-                {
-                    if(endMonth - startMonth < 1 || currentDate.getMonth()+1 == startMonth)
-                    {
+                if (endYear - startYear < 1 || currentDate.getFullYear() == startYear) {
+                    if (endMonth - startMonth < 1 || currentDate.getMonth() + 1 - startMonth < 1) {
                         chartContainer.innerHTML = '<h2 style="color: red">your dates don\'t work</h2>';
                         return;
                     }
                 }
 
                 //convert int < 10 to string month, ie 3 becomes '03'
-                if(startMonth < 10) { startMonth = '0'+ startMonth; }
+                if (startMonth < 10) {
+                    startMonth = '0' + startMonth;
+                }
 
-                if(endMonth < 10) { endMonth = '0'+ endMonth; }
+                if (endMonth < 10) {
+                    endMonth = '0' + endMonth;
+                }
 
-                url += '&start_date=' + startYear+startMonth + '&end_date='+ endYear+endMonth;
+                url += '&start_date=' + startYear + startMonth + '&end_date=' + endYear + endMonth;
             }
             //latest
-            else if(!startDateInput.value && latestInput.value)
-            {
-                url += '&latest='+latestInput.value;
+            else if (!startDateInput.value && !endDateInput.value && latestInput.value) {
+                url += '&latest=' + latestInput.value;
             }
             //error,
-            else if(startDateInput.value && endDateInput.value && latestInput.value)
-            {
+            else if ((startDateInput.value || endDateInput.value) && latestInput.value) {
                 chartContainer.innerHTML = '<h2 style="color: red">please specify start and end dates<br>OR<br>latest number of months</h2>';
                 return;
             }
@@ -127,54 +151,20 @@ function callCompeteAPI()
 
             chartContainer.innerHTML = '<div style="text-align: center"><img src="images/hexLoader.gif"><h2>Loading...</h2></div>';
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", url, true);
-            xhr.onload = function ()
-            {
-                wasGoAlreadyClicked = false;
+            didCompeteJSONLoad = false;
 
-                if (xhr.readyState === 4)
-                {
-                    if (xhr.status === 200)
-                    {
-                        var competeJSON = JSON.parse(xhr.responseText);
+            script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = url;
+            document.getElementsByTagName('head')[0].appendChild(script);
 
-                        if(competeJSON.status == 'NO_DATA')
-                        {
-                            chartContainer.innerHTML = '<h2 style="color: red">No data for this site.</h2>';
-                        }
-                        else
-                        {
-                            makeChart(competeJSON, metricDropDown.options[metricDropDown.selectedIndex].text, metricDropDown.value, domainName);
-                        }
-
-                    }
-                    else
-                    {
-                        console.error(xhr.statusText);
-                    }
+            setTimeout(function () {
+                if (!didCompeteJSONLoad) {
+                    chartContainer.innerHTML = '<h2 style="color: red">the data could not be fetched</h2>'
                 }
-            };
-            xhr.timeout = 4000;
-            xhr.ontimeout = function ()
-            {
-                wasGoAlreadyClicked = false;
-
-                chartContainer.innerHTML = '<h2 style="color: red">the server timed out</h2>';
-            };
-
-            xhr.onerror = function ()
-            {
-                wasGoAlreadyClicked = false;
-
-                console.error(xhr.statusText);
-            };
-            xhr.send(null);
-
+            }, timeOutInMilliseconds);
         }
     }
-
-
 }
 
 function makeChart (data, metricName, metricCode, domain) {
@@ -191,7 +181,6 @@ function makeChart (data, metricName, metricCode, domain) {
     // inputs and it will create the chart and render it into the page
     // for you.
 
-    
     function getUTC(datestring){
         return Date.UTC(datestring.substring(0,4), datestring.substring(4)-1);
     }
@@ -302,11 +291,9 @@ function makeChart (data, metricName, metricCode, domain) {
  //  Utility Functions   \\
 //========================\\
 
-function convertDateToYear(date)
-{
+function convertDateToYear(date) {
     return date.match(/\d{4}/);
 }
-function convertDateToMonth(date)
-{
+function convertDateToMonth(date) {
     return date.match(/-\d{2}/)[0].replace("-", "");
 }
