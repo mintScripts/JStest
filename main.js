@@ -71,8 +71,8 @@ goButton.addEventListener("click", function() {
 
 function competeCallback(competeJSON) {
     didCompeteJSONLoad = true;
-    script = null;
     document.getElementsByTagName('head')[0].removeChild(script);
+    script = null;
 
     wasGoAlreadyClicked = false;
 
