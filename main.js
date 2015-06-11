@@ -77,10 +77,10 @@ function competeCallback(competeJSON) {
     wasGoAlreadyClicked = false;
 
     if (competeJSON.status == 'NO_DATA') {
-        chartContainer.innerHTML = '<h2 style="color: red">No data for this site.</h2>';
+        setWarngingMessage('No data for this site.');
     }
     else if (competeJSON.status == 'ACCESS_DENIED') {
-        chartContainer.innerHTML = '<h2 style="color: red">' + competeJSON.status_message + '</h2>';
+        setWarngingMessage(competeJSON.status_message);
     }
     else {
         makeChart(competeJSON, metricDropDown.options[metricDropDown.selectedIndex].text, metricDropDown.value, domainName)
@@ -92,7 +92,7 @@ function callCompeteAPI() {
     domainName = domainInput.value.match(/([a-z0-9-.]*)\.([a-z]{2,4})/);
 
     if (!domainName) {
-        chartContainer.innerHTML = '<h2 style="color: red">please enter a valid domain<br>for example: facebook.com</h2>';
+        setWarngingMessage('please enter a valid domain<br>for example: facebook.com');
     }
     else {
         domainName = domainName[0];
@@ -121,7 +121,7 @@ function callCompeteAPI() {
                 //check that the start date is in the past and end date is larger than start date
                 if (endYear - startYear < 1 || currentDate.getFullYear() == startYear) {
                     if (endMonth - startMonth < 1 || currentDate.getMonth() + 1 - startMonth < 1) {
-                        chartContainer.innerHTML = '<h2 style="color: red">your dates don\'t work</h2>';
+                        setWarngingMessage('those dates won\'t work');
                         return;
                     }
                 }
@@ -143,7 +143,7 @@ function callCompeteAPI() {
             }
             //error,
             else if ((startDateInput.value || endDateInput.value) && latestInput.value) {
-                chartContainer.innerHTML = '<h2 style="color: red">please specify start and end dates<br>OR<br>latest number of months</h2>';
+                setWarngingMessage('please specify start and end dates<br>OR<br>latest number of months');
                 return;
             }
 
@@ -155,12 +155,13 @@ function callCompeteAPI() {
 
             script = document.createElement('script');
             script.type = 'text/javascript';
+            script.async = true;
             script.src = url;
             document.getElementsByTagName('head')[0].appendChild(script);
 
             setTimeout(function () {
                 if (!didCompeteJSONLoad) {
-                    chartContainer.innerHTML = '<h2 style="color: red">the data could not be fetched</h2>'
+                    setWarngingMessage('the data could not be fetched');
                 }
             }, timeOutInMilliseconds);
         }
@@ -296,4 +297,8 @@ function convertDateToYear(date) {
 }
 function convertDateToMonth(date) {
     return date.match(/-\d{2}/)[0].replace("-", "");
+}
+function setWarngingMessage(string) {
+    chartContainer.innerHTML = '<h2 style="color: red; position: relative; top: 50%; transform: translateY(-50%);">' +
+        string + '</h2>';
 }
